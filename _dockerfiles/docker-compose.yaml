@@ -1,0 +1,66 @@
+version: "3"
+
+services:
+  #nginx
+  api-server:
+    container_name: api-server
+    image: nginx:stable-alpine
+    restart: always
+    ports:
+      - "5082:80"
+    volumes:
+      - ../html:/var/www/html
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - apinet
+
+  #php
+  api-app:
+    container_name: api-app
+    build:
+      context: .
+      dockerfile: ./php/Dockerfile
+    restart: always
+    volumes:
+      - ../html:/var/www/html
+    networks:
+      - apinet
+
+  #dB
+  api-db:
+    container_name: api-db
+    platform: linux/x86_64
+    image: mysql:8
+    ports:
+      - 5086:3306
+    command: --init-file /data/application/init.sql
+    volumes:
+      - ./mysql/init.sql:/data/application/init.sql
+      - apidata:/var/lib/mysql
+    restart: always # always restart unless stopped manually
+    environment:
+      MYSQL_DATABASE: scorpio
+      MYSQL_ROOT_PASSWORD: r00tadmin
+    networks:
+      - apinet
+
+  api-admin:
+    container_name: api-admin
+    image: phpmyadmin/phpmyadmin
+    environment:
+      PMA_HOST: api-db
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+    ports:
+      - 5084:80
+    networks:
+      - apinet
+
+volumes:
+  apidata:
+    driver: local
+    name: apidata
+
+networks:
+  apinet:
+    name: apinet
